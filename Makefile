@@ -1,17 +1,16 @@
+app?=ssh-server
+image_tag := $(app)
+image_tar := $(app).tar
+image_eif := $(app).eif
 
-prog := enclave-app
-image_tag := $(prog)
-image_tar := $(prog).tar
-image_eif := $(prog).eif
-
-$(image_tar): Dockerfile enclave-app.py start.sh Makefile
+$(image_tar): $(app)/* Makefile
 	@echo "Building $(image_tar)..."
-	@docker run \
+	docker run \
 		--quiet \
-		--volume $(PWD):/workspace \
+		--volume $(PWD)/$(app):/workspace \
 		gcr.io/kaniko-project/executor:v1.9.2 \
 		--reproducible \
-		--tarPath $(image_tar) \
+		--tar-path $(image_tar) \
 		--no-push \
 		--verbosity warn \
 		--destination $(image_tag) \
@@ -19,11 +18,11 @@ $(image_tar): Dockerfile enclave-app.py start.sh Makefile
 
 $(image_eif): $(image_tar)
 	@echo "Loading Docker image..."
-	@docker load --quiet --input $<
+	@docker load --quiet --input $(app)/$<
 	@echo "Building $(image_eif)..."
 	@nitro-cli build-enclave \
 		--docker-uri $(image_tag) \
-		--output-file $(image_eif)
+		--output-file $(app)/$(image_eif)
 
 .PHONY: run
 run: $(image_eif)
@@ -32,8 +31,8 @@ run: $(image_eif)
 		--all
 	@echo "Starting enclave..."
 	@nitro-cli run-enclave \
-		--enclave-name $(prog) \
-		--eif-path $(image_eif) \
+		--enclave-name $(app) \
+		--eif-path $(app)/$(image_eif) \
 		--attach-console \
 		--cpu-count 2 \
 		--memory 3500
