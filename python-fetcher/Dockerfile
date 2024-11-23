@@ -10,16 +10,18 @@ RUN make -C veil
 
 # Use the intermediate builder image to add our files.  This is necessary to
 # avoid intermediate layers that contain inconsistent file permissions.
-COPY enclave-app.py start.sh ./
-RUN chown root:root ./enclave-app.py ./start.sh
-RUN chmod 0755      ./enclave-app.py ./start.sh
+COPY enclave-app.py ./
+RUN chown root:root ./enclave-app.py
+RUN chmod 0755      ./enclave-app.py
 
 FROM python:3.12-slim-bullseye
 
 # Copy all our files to the final image.
 COPY --from=builder \
     /app/veil/cmd/veil/veil \
-    /app/start.sh \
     /app/enclave-app.py /bin/
 
-CMD ["start.sh"]
+ENTRYPOINT ["veil", \
+    "-fqdn", "example.com", \
+    "-wait-for-app", \
+    "-app-cmd", "enclave-app.py"]
